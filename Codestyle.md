@@ -6,7 +6,7 @@
 
 **Делегаты** - Microsoft пишет, что нужно вызывать делегаты в формате:
 ``` csharp
-actionExample(args)
+actionExapmle(args)
 ```
 
 Но мы так делать не будем, потому что это создает необходимость писать дополнительный `if`. 
@@ -14,31 +14,55 @@ actionExample(args)
 Вместо этого продолжим использовать:
 
 ```csharp
-actionExample?.Invoke(args)
+actionExapmle?.Invoke(args)
 ```
 
 **Оператор `new`** - везде где можно используем запись вида `new ()`. А значит в объявлениях локальных функциях заменяем `var` на создаваемый тип. 
 Пример:
 ```csharp
 // Before
-var exampleClass = new ExampleClass();
+var exapmleClass = new ExapmleClass();
 
 // After
-ExampleClass exampleClass = new ();
+ExapmleClass exapmleClass = new ();
 ```
 
 **Обработка событий** - лямбда-выражения используются только для коротких обработчиков не содержащих вычисления. Во всех остальных случаях *обработчики* выносятся в отдельный метод.
 
-**Запросы LINQ** - по возможности не используются в рантайме Unity. Или используются но на уровне инициализации типов. 
+> [!warning]
+> Не стоит забывать и отписываться от ивентов когда это возможно.
+> В случае использования обычного метода, все просто. А вот отписать анонимную функцию не получится если заранее её где-то не закэшировать. 
+> Поэтому следует послушать совет Microsoft и в случае, *когда вам нужно отписываться от события* использовать полноценный метод.
 
-**Комментарии** - очень желательно избегать их существования в принципе за исключением ситуаций с неоднозначными вычислениями. 
-Целессообразно оставлять комментарии которые дадут понять за счет чего происходят те или иные вычисления если название метода\класса не дают полноты картины. 
-Так же логичны комментарии с сылками на более подробное объяснение логики работы вычислений находящиеся в ГДД или таблицах геймдизайнеров. 
+>[!warning]
+>Так же часто при использовании иветов забывается такая особенность языка, как *"замыкания"*. 
+>Вот несколько мест где о них можно почитать: 
+> [C# и .NET | Замыкания (metanit.com)](https://metanit.com/sharp/tutorial/3.54.php)
+> [Магия замыканий C#. Краткий обзор работы замыканий в C# | Илиас Шейх | Стартап | Терпимая (medium.com)](https://medium.com/swlh/the-magic-of-c-closures-9c6e3fff6ff9) - самое подробное объяснение
+
+**Запросы LINQ** - если код выполняется часто то желательно отказаться от использования LINQ в пользу более оптимизированных методов. 
+Хорошей практикой использовать LINQ-запросы на инициализации типа за время до начала геймплея, особенно, если коллеции к которым приеняются запросы вы не можете однозначно назвать "маленькими".
+
+> [!note]
+> Причина такого правила проста. Вызов каждого метода-расширения LINQ создает дополнительный класс, вызывая тем самым аллокации. А конструкции `.ToList \ .ToDictionary` сами по себе говорят о выделении дополнительной памяти.
+> 
+> И необходимо этого избегать во всех местах, что могут стать "узким горлышком" всего проекта.
+
+**Комментарии** - очень желательно избегать их существования в принципе.
+
+> [!note]
+> Тем не менее исключения есть. 
+> 
+> Комментарии к методам \ классам со сложной логикой описать которую можно только прикрепив ссылку на документацию или кратким но внятным изложением происходящего. 
+> 
+> А так же **`summary`** для генерации документации или в ситуациях, когда вы пишете библиотечный код, который необходимо впоследствии сделать доступным, во всех смыслах, для сторонних разработчиков.
+
 
 **TODO** - не используются. Альтернативой служит вынесение на обсуждение и последующее создание задачи или отказ от действий. 
 
 **XML-комментарии** - не используются, если только вы не пишете публичный API. 
-> [!NOTE]
+
+> [!note]
 > К примеру, когда вы пишете класс в C# своего внутреннего проекта, то писать там XML-комментарии будет скорее моветоном и показателем не достаточно хорошо прописанного класса. 
 > 
 > В то же время если пишется EditorScript или вспомогательный метод с "особым" поведением. То к такому коду XML-комментарии могут быть написаны но лишь в случае острой в них необходимости. 
@@ -50,88 +74,87 @@ ExampleClass exampleClass = new ();
 
 Предпочтение отдается выделению взаимосвязынных членов в одну группу с учетом приведенных ниже правил, но уже относительно группы. 
 Тем не менее **все поля располагаются в начале типа и никогда не располагаются между методами.**
+ 
+ ```csharp
+[Header("View data")]
+[SerializeField] private Image icon;
+private Sprite _currentIcon;
+public string CurrentIconName => currentIcon.name;
 
-> [!example]-
-> ```csharp
-> [Header("View data")]
-> [SerializeField] private Image icon;
-> private Sprite _currentIcon;
-> public string CurrentIconName => currentIcon.name;
->
->[Header("Timer data")]
->[SerializeField] private int timerLenghtAtSeconds;
->private Task _currentTimer;
->private CancellationTokenSource _currentTimerToken_;
->```
+[Header("Timer data")]
+[SerializeField] private int timerLenghtAtSeconds;
+private Task _currentTimer;
+private CancellationTokenSource _currentTimerToken_;
+```
 
 Так же внутри взаимосвязной группы желательно рядом друг с другом держать члены одного типа(List под List \ int под int и т.д). 
 
->[!example]-
->
->```csharp
->private int _firstValue;
->private int _secondValue;
->private string _firstName;
->private string _secondName;
->private int[] _integers_;
->private string[] _strings;
+```csharp
+private int _firstValue;
+private int _secondValue;
+private string _firstName;
+private string _secondName;
+private int[] _integers_;
+private string[] _strings;
+```
 
 Ожидаемая последовательность выглядит так: 
 Ниже будет просто `private` но подразумевать стоит иерархическую последовательность `internal -> protected -> private`
 
 - `public` поля
+- `public` cобытия и делегаты
+- `public` Индексаторы
+- `public` свойства
 - **`SerializeField private`** поля
 - `private` поля
-- `public` cобытия и делегаты
 - `private` cобытия и делегаты
-- Индексаторы
-- `public` свойства
+- `private` Индексаторы
 - `private` свойства
+
 - `public` методы
 - `private` методы
 
 С методами есть одна особенность. Располагать их нужно в предполагаемом порядке вызова. Но сохраняя при этом правило *работы с публичными и приватными методами*.
 
->[!example]-
->```csharp
-> public sealed class ExampleClass
-> {
-> 	public void ShowExample() {}
-> 	public void HideExample() {}
-> 	private void StartExampleWork() {}
-> 	private void OnUpdateExampleView() {}
-> 	private void OnExampleCompleteWork() {}
-> 	private void AutoHideExample(){}
-> }
->```
->Здесь логика последовательна, но при этом сохраняются и *private \ public* правила. 
+```csharp
+ public sealed class exampleClass
+ {
+ 	public void ShowExample() {}
+ 	public void HideExapmle() {}
+ 	private void StartExapmleWork() {}
+ 	private void OnUpdateExapmleView() {}
+ 	private void OnExapmleCompleteWork() {}
+ 	private void AutoHideExapmle(){}
+ }
+```
 
+Здесь логика последовательна, но при этом сохраняются и *private \ public* правила. 
 
 # Именование идентификаторов
 Здесь я за основу беру правила *именования идентификаторов* от **[RSDN](https://rsdn.org/article/mag/200401/codestyle.XML)**. При этом есть лишь одно замечание.
 
 - Именование *`[SerializeField] private protected internal`* - полей пишется **без** нижнего подчеркивания. Иначе говоря, идентично *`public`* полям.
 
->[!info]-
+>[!note]
 >Поскольку и *`public`* и *`[SerializeField] private protected internal`* поля могут быть модифицированы в инспекторе, куда целесообразнее видеть их одинаковыми, что бы сразу понимать ситуацию.
 
 # Конкретнее о методах
 
 - Использование **[expression bodies](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/statements-expressions-operators/expression-bodied-members)** там где это возможно. 
-> [!info]-
+> [!note]
 > Считаю целесообразным использование *expression bodies* в ситуациях, когда тело метода можно представить исключительно возвращаемым значением.
 
 - Использование модификатора **`in`** когда в метод передается `class` состояние которых должно оставаться неизменным. При передаче `struct` стоит задуматься на сколько необходимо и допустимо использование данного модификатора для производительности. 
->[!warning]-
+>[!warning]
 > Не правильное использование *`in`* с типом `struct` может привести к проблемам с производительностью!
 
-> [!info]-
+> [!note]
 > Как правило использовать *`in`* имеет смысл в ситуациях с "большими" структурами что бы не создавать лишнюю копию в процессе передачи и в процессе работы со структурой в методе.
 
 - По возможности ограничить методы размером до 50-70  строк. 
 - Количество аргументов метода не должно превышать 10.
 
-> [!tip]-
+> [!tip]
 > В случае неуверенности в понимании того, что такое *`in`* и как оно работает можно почитать немного информации по ссылкам ниже.
 >
 >[c# 7.2 - Why would one ever use the "in" parameter modifier in C#? - Stack Overflow](https://stackoverflow.com/questions/52820372/why-would-one-ever-use-the-in-parameter-modifier-in-c)
@@ -143,15 +166,16 @@ ExampleClass exampleClass = new ();
 - Количество аргументов конструктора недолжно превышать 10.
 - Классы, которым нужно обеспечить неизменяемость, а так же используемые для сравнения в качестве ключа(или чего-то в этом роде), заменяются на *[`record`](https://habr.com/ru/amp/publications/675560/)*.
 - Обобщенные классы, по возможности, должны иметь модификатор *`where`* с указанием родительских типов.
->[!example]-
->```csharp
->public class AGenericClass<Т> where T : IComparable<Т> { }; 
->```
+
+```csharp
+public class AGenericClass<Т> where T : IComparable<Т> { }; 
+```
 
 # Nullable типы
 
 - Если тип по какой-то причине может быть `null`, не зависимо от того ссылочный он или значимый, он должен быть `Nullable`, но использовать конструкцию `Nullable<T>` явно смысла нет, достаточно использовать `?`
->[!tip]-
+
+>[!tip]
 > https://habr.com/ru/articles/786082/?utm_campaign=786082&utm_source=habrahabr&utm_medium=rss
 
 
@@ -163,7 +187,8 @@ ExampleClass exampleClass = new ();
 - **`IsNullOrWhiteSpace`** необходимо использовать вместо *`IsNullOrEmpty`*. [Сами Microsoft заявляют, что первый вариант производительнее. ](https://learn.microsoft.com/ru-ru/dotnet/api/system.string.isnullorwhitespace?view=net-8.0#-----------)
 - Использование оператора `??` там, где это нужно. 
 - По возможности не стоит опускать **Pattern Matching**.
-> [!tip]-
+
+> [!tip]
 > Почитать о нем можно по ссылкам ниже:
 > 
 > [Patterns - Pattern matching using the is and switch expressions. - C# | Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/patterns#constant-pattern)

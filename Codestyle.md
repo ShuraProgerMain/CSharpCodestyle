@@ -4,18 +4,13 @@
 
 ### Уточнения, которые на MSDN не присутствуют
 
-**Делегаты** - Microsoft пишет, что нужно вызывать делегаты в формате:
-``` csharp
-actionExapmle(args)
-```
-
-Но мы так делать не будем, потому что это создает необходимость писать дополнительный `if`. 
-
-Вместо этого продолжим использовать:
-
+**Делегаты**: 
+Пишем в следующем формате: 
 ```csharp
 actionExapmle?.Invoke(args)
 ```
+
+Причина в том, что здесь лаконично встроена проверка на null, которая будет необходима почти всегда воизбежание неожиданностей. 
 
 **Оператор `new`** - везде где можно используем запись вида `new ()`. А значит в объявлениях локальных функциях заменяем `var` на создаваемый тип. 
 Пример:
@@ -34,13 +29,89 @@ ExapmleClass exapmleClass = new ();
 > В случае использования обычного метода, все просто. А вот отписать анонимную функцию не получится если заранее её где-то не закэшировать. 
 > Поэтому следует послушать совет Microsoft и в случае, *когда вам нужно отписываться от события* использовать полноценный метод.
 
->[!warning]
->Так же часто при использовании иветов забывается такая особенность языка, как *"замыкания"*. 
->Вот несколько мест где о них можно почитать: 
+Так же часто при использовании иветов забывается такая особенность языка, как *"замыкания"*. 
+
+Чего-то особо страшного из-за них, как правило, не происходит. 
+Но часто возникает ситуация с циклом for, в котором регистрируется анонимное событие захватывающее переменную i, которую часто используют как стандартную для обозначения номера итерации.
+
+Вот так выглядит код с замыканием, который иногда вызывает непонимание у тех, кто с ними встретился впервые. 
+```csharp
+Action someAction;
+
+for(var i = 0; i < 10; i++)
+{
+	someAction = () => Console.Write(i);
+}
+
+someAction?.Invoke(); // 10
+
+// Понять почему так происходит будет сильно проще, если посмотреть как это выглядит внутри. 
+
+class DisplayClass
+{
+	internal int i;
+
+	internal void AnonymousMethod001()
+	{
+		Console.Write(i + " ");
+	}
+}
+
+Action someAction;
+
+AnonymousClass c = new AnonymousClass001();
+for(c.i = 0; c.i < 10; c.i++)
+{
+	someAction = c.AnonymousMethod001;
+}
+
+```
+
+Решение конретно описанной выше проблемы выглядит очень просто:
+```csharp
+Action someAction;
+
+for(var i = 0; i < 10; i++)
+{
+	var j = i;
+	someAction = () => Console.Write(j);
+}
+
+someAction?.Invoke(); // 10
+
+// Понять почему так происходит будет сильно проще, если посмотреть как это выглядит внутри. 
+
+class DisplayClass
+{
+	internal int j;
+
+	internal void AnonymousMethod001()
+	{
+		Console.Write(j + " ");
+	}
+}
+
+Action someAction;
+
+for(var i = 0; i < 10; i++)
+{
+	AnonymousClass c = new AnonymousClass001();
+	c.j = i;
+	someAction = c.AnonymousMethod001;
+}
+
+```
+
+> [!note]
+> Код в разделе с замыканием является обобщенным представлением того, что собирается из вашего кода в Low-Level C#
+
+> [!note]
+> Не могу сказать, что когда-то встречал острую необходимость знать что такое замыкания, но на всякий случай вот где можно узнать о них по больше:
+>
 > [C# и .NET | Замыкания (metanit.com)](https://metanit.com/sharp/tutorial/3.54.php)
 > [Магия замыканий C#. Краткий обзор работы замыканий в C# | Илиас Шейх | Стартап | Терпимая (medium.com)](https://medium.com/swlh/the-magic-of-c-closures-9c6e3fff6ff9) - самое подробное объяснение
 
-**Запросы LINQ** - если код выполняется часто то желательно отказаться от использования LINQ в пользу более оптимизированных методов. 
+**Запросы LINQ** - если код выполняется часто то желательно отказаться от использования LINQ в пользу более оптимизированных методов(как пример, использование Array.Sort, для сортировки, вместо OrderBy). 
 Хорошей практикой использовать LINQ-запросы на инициализации типа за время до начала геймплея, особенно, если коллеции к которым приеняются запросы вы не можете однозначно назвать "маленькими".
 
 > [!note]
@@ -98,21 +169,16 @@ private int[] _integers_;
 private string[] _strings;
 ```
 
-Ожидаемая последовательность выглядит так: 
-Ниже будет просто `private` но подразумевать стоит иерархическую последовательность `internal -> protected -> private`
-
-- `public` поля
-- `public` cобытия и делегаты
-- `public` Индексаторы
-- `public` свойства
-- **`SerializeField private`** поля
-- `private` поля
-- `private` cобытия и делегаты
-- `private` Индексаторы
-- `private` свойства
-
-- `public` методы
-- `private` методы
+Глобально последовательность сортировки членов класса по подификаторам должна выглядеть так:
+- `public -> [SerializeField] private -> protected -> internal -> private -> new -> abstract -> virtual -> override -> sealed -> static -> readonly -> extern -> unsafe -> volatile -> async`.
+Члены класса располагаются в следующем порядке:
+- Внутренние классы, структуры, перечисления. 
+- Поля, свойства.
+- Статические поля, константы и readonly-поля \ свойства.
+- Конструкторы и финализаторы. 
+- Методы.
+Внутри каждой группы элементы должны располагаться в следующем порядке:
+- `public -> internal -> protected internal -> protected -> private`
 
 С методами есть одна особенность. Располагать их нужно в предполагаемом порядке вызова. Но сохраняя при этом правило *работы с публичными и приватными методами*.
 
@@ -138,6 +204,17 @@ private string[] _strings;
 >[!note]
 >Поскольку и *`public`* и *`[SerializeField] private protected internal`* поля могут быть модифицированы в инспекторе, куда целесообразнее видеть их одинаковыми, что бы сразу понимать ситуацию.
 
+# Константы
+- Если нужно неизменяемое поле с уже известным значением, используем модификатор `const`.
+- Если нужно неизменяемое поле значение которого вычисляется в пределах конструктора, используем `readonly`.
+- Все "магические числа" необходимо заменять на const.
+
+> [!note]
+> После компиляции поля помеченные как `const` перестают существовать, а в местах обращений к ним просто подставляется их значение. 
+> 
+> Отсюда исходит и особенность, при работе с одной константой в нескольких сборках. 
+> Т.к при изменении константы, нужно перестраивать обе сборки, иначе значения будут отличаться. 
+
 # Конкретнее о методах
 
 - Использование **[expression bodies](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/statements-expressions-operators/expression-bodied-members)** там где это возможно. 
@@ -160,6 +237,8 @@ private string[] _strings;
 >[c# 7.2 - Why would one ever use the "in" parameter modifier in C#? - Stack Overflow](https://stackoverflow.com/questions/52820372/why-would-one-ever-use-the-in-parameter-modifier-in-c)
 >[The ‘in’-modifier and the readonly structs in C# - Developer Support (microsoft.com)](https://devblogs.microsoft.com/premier-developer/the-in-modifier-and-the-readonly-structs-in-c/)
 
+- Использовать `IReadOnlyList / IReadOnlyDictionary / IReadOnlyCollection / IEnumerable` в качестве входных данных для обеспечения неизменяемости коллекций.  ^72c779
+
 # Конкретнее о классах
 
 - Для всех классов, от которых не подразумевается возможность наследования используем модификатор *`sealed`*.
@@ -178,19 +257,57 @@ public class AGenericClass<Т> where T : IComparable<Т> { };
 >[!tip]
 > https://habr.com/ru/articles/786082/?utm_campaign=786082&utm_source=habrahabr&utm_medium=rss
 
+# List vs Array
+
+- Используйте `List<>` если размер коллекции может изменяться.
+- В качестве публичной или возвращаемой коллекции имеет смысл использовать `List<>` учитывая информацию про `IReadOnlyList / IEnumerable` расположенную выше.
+- Используйте массивы, для многомерных коллекций.
+- Используйте массивы, если длина коллекции неизменяема и заранее известна.
 
 # Throw Exception
 
 - Генерировать исключение имеет смысл только в тех случаях, когда от результата работы метода зависит дальнейшая стабильность приложения. Во всех остальных случаях имеет смысл использовать иные способы регистрации проблем, которые не портят пользовательский опыт.
+> [!note]
+> Здесь все зависит от используемых у вас инструментов. Можете просто писать Debug.Log и записывать все это в файл(плохой совет), можете использовать аналитические сервисы, такие как Sentry / Crashlytics. Можете так же попробовать и иные способы логирования, подходящих под ваши потребности.
 
 # Рекомендации
-- **`IsNullOrWhiteSpace`** необходимо использовать вместо *`IsNullOrEmpty`*. [Сами Microsoft заявляют, что первый вариант производительнее. ](https://learn.microsoft.com/ru-ru/dotnet/api/system.string.isnullorwhitespace?view=net-8.0#-----------)
-- Использование оператора `??` там, где это нужно. 
+
+### IsNullOrEmpty vs IsNullOrWhiteSpace
+- Если пробел в качестве единственного символа это все равно ошибка, используйте `IsNullOrWhiteSpace`.
+- Если пробел в качестве единственного символа это валидное значение, используйте `IsNullOrEmpty`.
+- [Сами Microsoft заявляют, что IsNullOrWhiteSpace быстрее](https://learn.microsoft.com/ru-ru/dotnet/api/system.string.isnullorwhitespace?view=net-8.0) но если посмотреть исходный код, то тело этого метода более громоздкое в плане инструкций, что заставляет сомневаться  в словах MSDN.
+
+[Source code:](https://referencesource.microsoft.com/mscorlib/R/55e241b6143365ef.html)
+```csharp
+[Pure]
+public static bool IsNullOrEmpty(String value) {
+	return (value == null || value.Length == 0);
+}
+
+[Pure]
+public static bool IsNullOrWhiteSpace(String value) {
+	if (value == null) return true;
+
+	for(int i = 0; i < value.Length; i++) {
+		if(!Char.IsWhiteSpace(value[i])) return false;
+	}
+
+	return true;
+}
+```
+
+- Если нужно присвоить значение какой-то переменной лишь в случае, когда она равна `null` то можно обойтись без конструкции `if` обойдясь следующей записью:
+```csharp
+SomeClass someVar;
+
+someVar ??= new SomeClass(); 
+```
+Здесь весь "`if`" спрятан в операторе `??`.
+
 - По возможности не стоит опускать **Pattern Matching**.
 
 > [!tip]
 > Почитать о нем можно по ссылкам ниже:
 > 
-> [Patterns - Pattern matching using the is and switch expressions. - C# | Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/patterns#constant-pattern)
 > [Patterns - Pattern matching using the is and switch expressions. - C# | Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/patterns#constant-pattern)
 > [C# и .NET | Pattern matching (metanit.com)](https://metanit.com/sharp/tutorial/3.34.php)

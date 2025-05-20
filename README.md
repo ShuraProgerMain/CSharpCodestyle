@@ -1,5 +1,8 @@
 # Введение
 
+Читать в нормальном виде тут: [https://shuras-organization.gitbook.io/csharpunitystyleguide](https://shuras-organization.gitbook.io/csharpunitystyleguide)
+
+\
 Данный документ основан на личном опыте, а так же на самых популярных конвенциях.
 
 * [MSDN](https://learn.microsoft.com/ru-ru/dotnet/csharp/fundamentals/coding-style/coding-conventions)
